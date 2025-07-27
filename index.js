@@ -149,6 +149,14 @@ async function run() {
     });
 
 
+   app.get("/featured-books", async (req, res) => {
+      const data = await booksCollection
+        .find({ status: "available" })
+        .sort({ createdAt: -1 })
+        .limit(4)
+        .toArray();
+      res.send(data);
+    });
 
 
 
