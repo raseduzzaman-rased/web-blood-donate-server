@@ -141,6 +141,12 @@ async function run() {
     );
 
 
+  app.get("/available-books", async (req, res) => {
+      const data = await booksCollection
+        .find({ status: "available" })
+        .toArray();
+      res.send(data);
+    });
 
 
 
@@ -150,7 +156,7 @@ async function run() {
 
 
 
-    
+
     app.get("/my-books", verifyFirebaseToken, async (req, res) => {
       const { page, filter } = req.query;
       const query = { ownerEmail: req.firebaseUser.email };
