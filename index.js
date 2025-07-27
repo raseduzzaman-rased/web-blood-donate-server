@@ -98,6 +98,24 @@ app.get("/user/profile", verifyFirebaseToken, async (req, res) => {
 });
 
 
+// 2️⃣ Update User Profile
+app.patch("/user/profile", verifyFirebaseToken, async (req, res) => {
+  const email = req.firebaseUser.email;
+  const updateData = req.body; // should contain updated fields
+
+  try {
+    const result = await userCollection.updateOne(
+      { email },
+      { $set: updateData }
+    );
+
+    res.send(result);
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({ message: "Failed to update profile" });
+  }
+});
+
 
 
 
