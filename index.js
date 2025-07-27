@@ -18,8 +18,6 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -140,16 +138,14 @@ async function run() {
       }
     );
 
-
-  app.get("/available-books", async (req, res) => {
+    app.get("/available-books", async (req, res) => {
       const data = await booksCollection
         .find({ status: "available" })
         .toArray();
       res.send(data);
     });
 
-
-   app.get("/featured-books", async (req, res) => {
+    app.get("/featured-books", async (req, res) => {
       const data = await booksCollection
         .find({ status: "available" })
         .sort({ createdAt: -1 })
@@ -157,13 +153,6 @@ async function run() {
         .toArray();
       res.send(data);
     });
-
-
-
-
-
-
-
 
     app.get("/my-books", verifyFirebaseToken, async (req, res) => {
       const { page, filter } = req.query;
@@ -222,7 +211,6 @@ async function run() {
           amount: amount * 100, // in cents (e.g., 500 = $5.00)
           currency: "usd",
           payment_method_types: ["card"],
-          
         });
 
         res.send({
