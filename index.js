@@ -18,6 +18,8 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
+// const serviceAccount = require("./admin-key.json");
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -49,6 +51,7 @@ const verifyFirebaseToken = async (req, res, next) => {
     req.firebaseUser = decodedToken; // You can access user info like uid, email, etc.
     next();
   } catch (error) {
+    console.log(error)
     return res
       .status(401)
       .json({ message: "Unauthorized: Invalid token from catch" });
@@ -73,6 +76,32 @@ async function run() {
         res.status(403).send({ msg: "unauthorized" });
       }
     };
+
+
+
+// 1️⃣ Get User Profile
+app.get("/user/profile", verifyFirebaseToken, async (req, res) => {
+  const email = req.firebaseUser.email;
+
+  try {
+    const user = await userCollection.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    res.send(user);
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+
+
+
+
 
     app.post("/add-book", async (req, res) => {
       // Book Title, Cover Image, Author Name, Genre, Pickup Location, Available Until
@@ -211,6 +240,7 @@ async function run() {
           amount: amount * 100, // in cents (e.g., 500 = $5.00)
           currency: "usd",
           payment_method_types: ["card"],
+          
         });
 
         res.send({
