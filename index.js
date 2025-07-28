@@ -78,6 +78,36 @@ async function run() {
       }
     };
 
+    app.get("/public-donation-requests", async (req, res) => {
+      const status = req.query.status || "pending";
+      const requests = await donationCollection
+        .find({ status })
+        .sort({ createdAt: -1 })
+        .toArray();
+      res.send(requests);
+    });
+
+    // PATCH donation status
+    app.patch(
+      "/donation-requests/:id",
+      verifyFirebaseToken,
+      async (req, res) => {
+        const { id } = req.params;
+        const updateData = req.body;
+
+        try {
+          const result = await donationCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+          );
+          res.send(result);
+        } catch (err) {
+          console.error(err);
+          res.status(500).json({ message: "Update failed" });
+        }
+      }
+    );
+
     app.post("/donation-requests", verifyFirebaseToken, async (req, res) => {
       const userEmail = req.firebaseUser.email;
       const user = await userCollection.findOne({ email: userEmail });
