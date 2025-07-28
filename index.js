@@ -298,6 +298,28 @@ app.patch("/donation-requests/:id", verifyFirebaseToken, async (req, res) => {
 });
 
 
+app.get("/all-donation-requests", verifyFirebaseToken, verifyAdmin, async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 5;
+  const status = req.query.status;
+
+  const query = {};
+  if (status && status !== "all") {
+    query.status = status;
+  }
+
+  const total = await donationCollection.countDocuments(query);
+  const donations = await donationCollection
+    .find(query)
+    .sort({ createdAt: -1 })
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .toArray();
+
+  res.send({ donations, total });
+});
+
+
     app.patch(
       "/update-role",
       verifyFirebaseToken,
