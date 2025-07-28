@@ -78,6 +78,103 @@ async function run() {
       }
     };
 
+
+app.post("/donation-requests", verifyFirebaseToken, async (req, res) => {
+  const userEmail = req.firebaseUser.email;
+  const user = await userCollection.findOne({ email: userEmail });
+
+  if (!user || user.status !== "active") {
+    return res.status(403).json({ message: "Blocked users cannot create requests" });
+  }
+
+  const requestData = req.body;
+  requestData.requesterEmail = userEmail;
+  requestData.status = "pending"; // force status to "pending"
+  requestData.createdAt = new Date();
+
+  const result = await donationCollection.insertOne(requestData);
+  res.send(result);
+});
+
+
+
+app.get("/donation-requests", verifyFirebaseToken, async (req, res) => {
+  const email = req.query.email;
+  const limit = parseInt(req.query.limit) || 0;
+
+  const query = { requesterEmail: email };
+  const cursor = donationCollection.find(query).sort({ createdAt: -1 });
+  const donations = limit > 0 ? await cursor.limit(limit).toArray() : await cursor.toArray();
+
+  res.send(donations);
+});
+
+
+
+app.get("/my-donation-requests", verifyFirebaseToken, async (req, res) => {
+  const email = req.firebaseUser.email;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 5;
+  const status = req.query.status;
+
+  const query = { requesterEmail: email };
+  if (status && status !== "all") {
+    query.status = status;
+  }
+
+  const total = await donationCollection.countDocuments(query);
+  const donations = await donationCollection
+    .find(query)
+    .sort({ createdAt: -1 })
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .toArray();
+
+  res.send({ donations, total });
+});
+
+
+
+app.delete("/donation-requests/:id", verifyFirebaseToken, async (req, res) => {
+  const id = req.params.id;
+  const result = await donationCollection.deleteOne({ _id: new ObjectId(id) });
+  res.send(result);
+});
+
+
+// Get a single donation request by ID
+app.get("/donation-requests/:id", verifyFirebaseToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const donation = await donationCollection.findOne({ _id: new ObjectId(id) });
+    if (!donation) return res.status(404).json({ message: "Donation not found" });
+    res.send(donation);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error fetching donation" });
+  }
+});
+
+// Update a donation request
+app.patch("/donation-requests/:id", verifyFirebaseToken, async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+  try {
+    const result = await donationCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateData }
+    );
+    res.send(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Update failed" });
+  }
+});
+
+
+
+
+
     // 1️⃣ Get User Profile
     app.get("/user/profile", verifyFirebaseToken, async (req, res) => {
       const email = req.firebaseUser.email;
@@ -135,6 +232,7 @@ async function run() {
             $set: {
               name: userData.name,
               photo: userData.photo,
+              blood: userData.blood,
             },
             $inc: { loginCount: 1 },
           }
@@ -144,6 +242,7 @@ async function run() {
         const result = await userCollection.insertOne({
           ...userData,
           role: "donor",
+          status: "active",
           createdAt: new Date(),
         });
         return res.send({ msg: "New user created", inserted: result });
