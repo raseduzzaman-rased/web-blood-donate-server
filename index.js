@@ -267,17 +267,36 @@ app.patch("/donation-requests/:id", verifyFirebaseToken, async (req, res) => {
       });
     });
 
-    app.get(
-      "/get-users",
-      verifyFirebaseToken,
-      verifyAdmin,
-      async (req, res) => {
-        const users = await userCollection
-          .find({ email: { $ne: req.firebaseUser.email } })
-          .toArray();
-        res.send(users);
-      }
-    );
+    // app.get(
+    //   "/get-users",
+    //   verifyFirebaseToken,
+    //   verifyAdmin,
+    //   async (req, res) => {
+    //     const users = await userCollection
+    //       .find({ email: { $ne: req.firebaseUser.email } })
+    //       .toArray();
+    //     res.send(users);
+    //   }
+    // );
+
+    app.get("/get-users", verifyFirebaseToken, verifyAdmin, async (req, res) => {
+  const { status, page = 1, limit = 10 } = req.query;
+
+  const query = { email: { $ne: req.firebaseUser.email } };
+  if (status && status !== "all") {
+    query.status = status;
+  }
+
+  const total = await userCollection.countDocuments(query);
+  const users = await userCollection
+    .find(query)
+    .skip((parseInt(page) - 1) * parseInt(limit))
+    .limit(parseInt(limit))
+    .toArray();
+
+  res.send({ users, total });
+});
+
 
     app.patch(
       "/update-role",
@@ -295,6 +314,23 @@ app.patch("/donation-requests/:id", verifyFirebaseToken, async (req, res) => {
         res.send(result);
       }
     );
+
+
+    app.patch("/update-status", verifyFirebaseToken, verifyAdmin, async (req, res) => {
+  const { email, status } = req.body;
+
+  if (!email || !status) {
+    return res.status(400).json({ message: "Email and status required" });
+  }
+
+  const result = await userCollection.updateOne(
+    { email },
+    { $set: { status } }
+  );
+
+  res.send(result);
+});
+
 
     app.get("/available-books", async (req, res) => {
       const data = await booksCollection
