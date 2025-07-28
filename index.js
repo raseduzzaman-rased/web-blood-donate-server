@@ -51,7 +51,7 @@ const verifyFirebaseToken = async (req, res, next) => {
     req.firebaseUser = decodedToken; // You can access user info like uid, email, etc.
     next();
   } catch (error) {
-    console.log(error)
+    console.log(error);
     return res
       .status(401)
       .json({ message: "Unauthorized: Invalid token from catch" });
@@ -64,6 +64,7 @@ async function run() {
     const db = client.db("db_name");
     const booksCollection = db.collection("books");
     const userCollection = db.collection("users");
+    const donationCollection = db.collection("donationRequests");
 
     const verifyAdmin = async (req, res, next) => {
       const user = await userCollection.findOne({
@@ -77,49 +78,41 @@ async function run() {
       }
     };
 
+    // 1️⃣ Get User Profile
+    app.get("/user/profile", verifyFirebaseToken, async (req, res) => {
+      const email = req.firebaseUser.email;
 
+      try {
+        const user = await userCollection.findOne({ email });
 
-// 1️⃣ Get User Profile
-app.get("/user/profile", verifyFirebaseToken, async (req, res) => {
-  const email = req.firebaseUser.email;
+        if (!user) {
+          return res.status(404).json({ message: "User not found." });
+        }
 
-  try {
-    const user = await userCollection.findOne({ email });
+        res.send(user);
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+        res.status(500).json({ message: "Server error" });
+      }
+    });
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
+    // 2️⃣ Update User Profile
+    app.patch("/user/profile", verifyFirebaseToken, async (req, res) => {
+      const email = req.firebaseUser.email;
+      const updateData = req.body; // should contain updated fields
 
-    res.send(user);
-  } catch (error) {
-    console.error("Error fetching profile:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+      try {
+        const result = await userCollection.updateOne(
+          { email },
+          { $set: updateData }
+        );
 
-
-// 2️⃣ Update User Profile
-app.patch("/user/profile", verifyFirebaseToken, async (req, res) => {
-  const email = req.firebaseUser.email;
-  const updateData = req.body; // should contain updated fields
-
-  try {
-    const result = await userCollection.updateOne(
-      { email },
-      { $set: updateData }
-    );
-
-    res.send(result);
-  } catch (error) {
-    console.error("Error updating profile:", error);
-    res.status(500).json({ message: "Failed to update profile" });
-  }
-});
-
-
-
-
-
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating profile:", error);
+        res.status(500).json({ message: "Failed to update profile" });
+      }
+    });
 
     app.post("/add-book", async (req, res) => {
       // Book Title, Cover Image, Author Name, Genre, Pickup Location, Available Until
@@ -131,29 +124,48 @@ app.patch("/user/profile", verifyFirebaseToken, async (req, res) => {
     app.post("/add-user", async (req, res) => {
       const userData = req.body;
 
-      const find_result = await userCollection.findOne({
+      const existingUser = await userCollection.findOne({
         email: userData.email,
       });
 
-      if (find_result) {
-        userCollection.updateOne(
+      if (existingUser) {
+        const updateResult = await userCollection.updateOne(
           { email: userData.email },
           {
+            $set: {
+              name: userData.name,
+              photo: userData.photo,
+            },
             $inc: { loginCount: 1 },
           }
         );
-        res.send({ msg: "user already exist" });
+        return res.send({ msg: "User updated", updated: updateResult });
       } else {
-        const result = await userCollection.insertOne(userData);
-        res.send(result);
+        const result = await userCollection.insertOne({
+          ...userData,
+          role: "donor",
+          createdAt: new Date(),
+        });
+        return res.send({ msg: "New user created", inserted: result });
       }
     });
 
     app.get("/get-user-role", verifyFirebaseToken, async (req, res) => {
-      const user = await userCollection.findOne({
-        email: req.firebaseUser.email,
+      const email = req?.firebaseUser?.email;
+      const query = { email };
+
+      const user = await userCollection.findOne(query);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.send({
+        role: user.role || "donor",
+        status: user.status || "active",
+        name: user.name,
+        photo: user.photo,
       });
-      res.send({ msg: "ok", role: user.role, status: "active" });
     });
 
     app.get(
@@ -258,7 +270,6 @@ app.patch("/user/profile", verifyFirebaseToken, async (req, res) => {
           amount: amount * 100, // in cents (e.g., 500 = $5.00)
           currency: "usd",
           payment_method_types: ["card"],
-          
         });
 
         res.send({
