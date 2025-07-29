@@ -452,19 +452,18 @@ async function run() {
       res.send(data);
     });
 
-    app.get("/admin-dashboard-stats", async (req, res) => {
-      const userCount = await userCollection.countDocuments();
-      const bookCount = await booksCollection.countDocuments();
-      const bookRequestCount = await booksCollection.countDocuments({
-        status: "requested",
-      });
+  app.get("/admin-dashboard-stats", async (req, res) => {
+  const userCount = await userCollection.countDocuments();
+  const bookCount = await booksCollection.countDocuments();
+  const donationRequestCount = await donationCollection.countDocuments(); // ✅ NEW LINE
 
-      res.send({
-        totalUsers: userCount,
-        totalBooks: bookCount,
-        totalRequest: bookRequestCount,
-      });
-    });
+  res.send({
+    totalUsers: userCount,
+    totalBooks: bookCount,
+    totalRequest: donationRequestCount, // ✅ Now correct value sent to frontend
+  });
+});
+
 
     app.post("/blogs", verifyFirebaseToken, verifyAdmin, async (req, res) => {
       const { title, thumbnail, content } = req.body;
