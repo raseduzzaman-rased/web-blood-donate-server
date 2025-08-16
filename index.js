@@ -60,7 +60,7 @@ const verifyFirebaseToken = async (req, res, next) => {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
     const db = client.db("db_name");
     const booksCollection = db.collection("books");
     const userCollection = db.collection("users");
@@ -107,6 +107,23 @@ async function run() {
         }
       }
     );
+
+
+   
+
+
+// Get counts for dynamic pie chart
+app.get("/users-stats", verifyFirebaseToken, verifyAdmin, async (req, res) => {
+  try {
+    const activeUsers = await userCollection.countDocuments({ status: "active" });
+    const blockedUsers = await userCollection.countDocuments({ status: "blocked" });
+
+    res.send({ activeUsers, blockedUsers });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch user stats" });
+  }
+});
 
     app.post("/donation-requests", verifyFirebaseToken, async (req, res) => {
       const userEmail = req.firebaseUser.email;
@@ -191,25 +208,7 @@ async function run() {
       }
     });
 
-    // Update a donation request
-    app.patch(
-      "/donation-requests/:id",
-      verifyFirebaseToken,
-      async (req, res) => {
-        const { id } = req.params;
-        const updateData = req.body;
-        try {
-          const result = await donationCollection.updateOne(
-            { _id: new ObjectId(id) },
-            { $set: updateData }
-          );
-          res.send(result);
-        } catch (err) {
-          console.error(err);
-          res.status(500).json({ message: "Update failed" });
-        }
-      }
-    );
+   
 
     // 1️⃣ Get User Profile
     app.get("/user/profile", verifyFirebaseToken, async (req, res) => {
@@ -452,18 +451,17 @@ async function run() {
       res.send(data);
     });
 
-  app.get("/admin-dashboard-stats", async (req, res) => {
-  const userCount = await userCollection.countDocuments();
-  const bookCount = await booksCollection.countDocuments();
-  const donationRequestCount = await donationCollection.countDocuments(); // ✅ NEW LINE
+    app.get("/admin-dashboard-stats", async (req, res) => {
+      const userCount = await userCollection.countDocuments();
+      const bookCount = await booksCollection.countDocuments();
+      const donationRequestCount = await donationCollection.countDocuments(); // ✅ NEW LINE
 
-  res.send({
-    totalUsers: userCount,
-    totalBooks: bookCount,
-    totalRequest: donationRequestCount, // ✅ Now correct value sent to frontend
-  });
-});
-
+      res.send({
+        totalUsers: userCount,
+        totalBooks: bookCount,
+        totalRequest: donationRequestCount, // ✅ Now correct value sent to frontend
+      });
+    });
 
     app.post("/blogs", verifyFirebaseToken, verifyAdmin, async (req, res) => {
       const { title, thumbnail, content } = req.body;
